@@ -7,7 +7,7 @@ const postSchema = new mongoose.Schema({
   category: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  thumbnail: { type: String },
+  thumbnail: { type: String, required: true },
   images: [{ type: String }],
   keywords: { type: String },
   subtitle: { type: String },

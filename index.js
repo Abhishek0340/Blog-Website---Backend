@@ -100,61 +100,190 @@ app.post('/api/posts', async (req, res) => {
 });
 
 // Get current user info by email (for demo, expects email in query param)
+// app.get('/api/userinfo', async (req, res) => {
+//   const { email } = req.query;
+//   if (!email) return res.status(400).json({ error: 'Email required.' });
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(404).json({ error: 'User not found.' });
+//     res.json({ username: user.username, email: user.email });
+//   } catch (err) {
+//     res.status(500).json({ error: 'Server error.' });
+//   }
+// });
+
+
+// Get current user info by email
 app.get('/api/userinfo', async (req, res) => {
   const { email } = req.query;
   if (!email) return res.status(400).json({ error: 'Email required.' });
+
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    res.json({ username: user.username, email: user.email });
+
+    res.json({
+      username: user.username || user.name, 
+      email: user.email
+    });
   } catch (err) {
     res.status(500).json({ error: 'Server error.' });
   }
 });
 
 
-// Register endpoint
-app.post('/api/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required.' });
-  }
+
+
+
+// // Register endpoint
+// app.post('/api/register', async (req, res) => {
+//   const { name, email, password } = req.body;
+//   if (!name || !email || !password) {
+//     return res.status(400).json({ error: 'All fields are required.' });
+//   }
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json({ error: 'Email already registered.' });
+//     }
+
+//     const saltRounds = 10;
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//     const user = new User({ username: name, email, password: hashedPassword });
+//     await user.save();
+
+//     // Return user info
+//     res.status(201).json({
+//       message: 'User registered successfully.',
+//       user: {
+//         id: user._id,
+//         username: user.username,
+//         email: user.email
+//       }
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: 'Server error.' });
+//   }
+// });
+
+// // Login endpoint
+// app.post('/api/login', async (req, res) => {
+//   const { email, password } = req.body;
+//   if (!email || !password) {
+//     return res.status(400).json({ error: 'All fields are required.' });
+//   }
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(401).json({ error: 'Invalid email or password.' });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(401).json({ error: 'Invalid email or password.' });
+
+//     // Return user info
+//     res.json({
+//       message: 'Login successful.',
+//       user: {
+//         id: user._id,
+//         username: user.username,
+//         email: user.email
+//       }
+//     });
+//   } catch (err) {
+//     res.status(500).json({ error: 'Server error.' });
+//   }
+// });
+
+// ✅ Get all registered users (for admin dashboard)
+app.get("/api/register", async (req, res) => {
   try {
-    // Check if user exists
+    // Optional: only allow admins
+    const isAdmin = req.query.isAdmin === "true" || req.headers["x-admin"] === "true";
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    // Fetch all users, exclude password for safety
+    const users = await User.find({}, { password: 0 }).sort({ createdAt: -1 });
+    res.status(200).json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Server error fetching users." });
+  }
+});
+
+
+app.post("/api/register", async (req, res) => {
+  const { name, email, password, isAdmin } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered.' });
+      return res.status(400).json({ error: "Email already registered." });
     }
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const user = new User({ username: name, email, password: hashedPassword });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // `isAdmin` is optional (false by default)
+    const user = new User({
+      username: name,
+      email,
+      password: hashedPassword,
+      isAdmin: isAdmin || false,
+    });
+
     await user.save();
-    res.status(201).json({ message: 'User registered successfully.' });
+
+    res.status(201).json({
+      message: "User registered successfully.",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.isAdmin,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Server error.' });
+    console.error(err);
+    res.status(500).json({ error: "Server error." });
   }
 });
 
-// Login endpoint
-app.post('/api/login', async (req, res) => {
+
+// ✅ Login endpoint
+app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: 'All fields are required.' });
+    return res.status(400).json({ error: "All fields are required." });
   }
+
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: "Invalid email or password." });
     }
-    // Compare password
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: "Invalid email or password." });
     }
-    res.json({ message: 'Login successful.' });
+
+    // ✅ Include admin info in response
+    res.json({
+      message: "Login successful.",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.isAdmin,
+      },
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Server error.' });
+    console.error(err);
+    res.status(500).json({ error: "Server error." });
   }
 });
 
