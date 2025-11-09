@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 // Allow frontend domains
 app.use(
   cors({
-    origin: ['https://absbloger.netlify.app', 'http://localhost:5173'],
+    origin: ['https://absbloger.netlify.app', 'http://localhost:5173','https://blog-website-backend-wcn7.onrender.com'],
     credentials: true,
   })
 );
