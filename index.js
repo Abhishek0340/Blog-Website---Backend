@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 
 const User = require('./models/User');
 const Post = require('./models/Post');
+const Feedback = require('./models/Feedback');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,7 +17,7 @@ const allowedOrigins = [
   'http://localhost:5173',          // for local dev
   'https://absbloger.netlify.app',  // backup frontend
   'https://trendyblogs.site',       // your main frontend
-  'https://blog-website-backend-wcn7.onrender.com' // backend url
+  'http://localhost:5000'           // backend url
 ];
 
 app.use(
@@ -121,6 +122,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+
 // ✅ Login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
@@ -130,7 +132,7 @@ app.post('/api/login', async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user)
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'In                                                                         valid email or password.' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
@@ -211,6 +213,44 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
+// Feedback
+app.post('/api/feedback', async (req, res) => {
+  const { name, email, message } = req.body;
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "All fields are required." });
+  }
+
+  try {
+    const newFeedback = new Feedback({
+      name,
+      email,
+      message,
+      date: new Date()
+    });
+
+    await newFeedback.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: "Feedback submitted successfully." 
+    });
+
+  } catch (error) {
+    console.error("❌ Error saving feedback:", error);
+    res.status(500).json({ error: "Server error." });
+  }
+});
+
+
+app.get('/api/feedback', async (req, res) => {
+  try{
+    const feedback = await Feedback.find({});
+    res.json(feedback);
+  } catch (err) {
+    res.status(500).json({ error : 'Server error.'});
+  }
+})
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
