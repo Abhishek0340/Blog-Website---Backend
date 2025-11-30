@@ -17,7 +17,7 @@ const allowedOrigins = [
   'http://localhost:5173',          // for local dev
   'https://absbloger.netlify.app',  // backup frontend
   'https://trendyblogs.site',       // your main frontend
-  'http://localhost:5000'           // backend url
+  'https://blog-website-backend-wcn7.onrender.com'           // backend url
 ];
 
 app.use(
@@ -91,15 +91,23 @@ app.get('/api/register', async (req, res) => {
 // ✅ Register User
 app.post('/api/register', async (req, res) => {
   const { name, email, password, isAdmin } = req.body;
+
   if (!name || !email || !password)
     return res.status(400).json({ error: 'All fields are required.' });
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
+    // Check for email duplication
+    const emailExist = await User.findOne({ email });
+    if (emailExist)
       return res.status(400).json({ error: 'Email already registered.' });
 
+    // Check for username duplication
+    const usernameExist = await User.findOne({ username: name });
+    if (usernameExist)
+      return res.status(400).json({ error: 'Username already taken.' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = new User({
       username: name,
       email,
@@ -108,6 +116,7 @@ app.post('/api/register', async (req, res) => {
     });
 
     await user.save();
+
     res.status(201).json({
       message: 'User registered successfully.',
       user: {
@@ -117,7 +126,9 @@ app.post('/api/register', async (req, res) => {
         isAdmin: user.isAdmin,
       },
     });
+
   } catch (err) {
+    console.error("Register Error:", err);
     res.status(500).json({ error: 'Server error.' });
   }
 });
